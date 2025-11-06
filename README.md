@@ -1,3 +1,5 @@
+[![Terraform CI/CD](https://github.com/valhio/task-2-infrastructure-automation-setup/actions/workflows/terraform.yaml/badge.svg)](https://github.com/valhio/task-2-infrastructure-automation-setup/actions/workflows/terraform.yaml)
+
 # Demo Web Application with Load Balancer EC2 and RDS using Terraform on AWS
 
 This repository contains Terraform code to provision a simple **web application stack** on AWS using Infrastructure-as-Code (IaC). The stack includes:
