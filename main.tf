@@ -5,6 +5,14 @@ terraform {
       version = "~> 5.0"
     }
   }
+
+  backend "s3" {
+    bucket         = "my-tf-state-sap-demo"
+    key            = "infra/terraform.tfstate"
+    region         = "us-east-1"
+    dynamodb_table = "terraform-locks"  # optional but recommended
+    encrypt        = true
+  }
 }
 
 provider "aws" {
