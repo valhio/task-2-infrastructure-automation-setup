@@ -6,6 +6,8 @@ This repository contains Terraform code to provision a simple **web application 
 - **A MySQL RDS database**  
 - **An Application Load Balancer (ALB)** to distribute traffic  
 - **Security groups and networking** (VPC, subnets, Internet Gateway)
+- **S3 + DynamoDB backend** for Terraform remote state & locking
+- **GitHub Actions CI/CD pipeline** automating deployment on code changes
 
 The web application allows you to **view users** stored in the database and **add users via a URL parameter**.
 <br>
@@ -20,7 +22,8 @@ To test the setup, you can go to http://demo-alb-1961873780.us-east-1.elb.amazon
 3. [Terraform Setup](#terraform-setup)
 4. [Application Usage](#application-usage)
 5. [Outputs](#outputs)
-6. [Security Notes](#security-notes)
+6. [Continuous Integration / Continuous Deployment (CI/CD)](#continuous-integration--continuous-deployment-cicd)
+7. [Security Notes](#security-notes)
 ---
 
 ## Architecture
@@ -93,6 +96,72 @@ Terraform automatically outputs:
 | `load_balancer_dns`    | Public URL of your ALB                    |
 | `database_endpoint`    | RDS database endpoint                     |
 | `database_username`    | RDS database username                     |
+
+---
+
+## Continuous Integration / Continuous Deployment (CI/CD)
+
+This project uses **GitHub Actions** to automatically deploy and manage the entire infrastructure defined in `main.tf` using **Terraform**.
+<br>
+Whenever a new commit is pushed to the `main` branch, the CI/CD pipeline runs and automatically applies the latest Terraform configuration to AWS.
+
+### What the Pipeline Does
+
+1. **Checks out the repository**
+   - Pulls the latest Terraform configuration from the repo.
+
+2. **Sets up Terraform**
+   - Uses the official HashiCorp Terraform setup action.
+
+3. **Initializes the backend**
+   - Connects to a S3 bucket (for remote Terraform state storage).
+   and DynamoDB table (for state locking).
+
+4. **Validates and plans changes**
+   - Runs `terraform init`, and `terraform plan` to preview updates.
+
+5. **Applies changes automatically**
+   - Executes:
+     ```bash
+     terraform taint aws_instance.web[0]
+     terraform taint aws_instance.web[1]
+     terraform apply -auto-approve
+     ```
+   - This ensures that the web servers always rebuild and deploy the latest PHP updates.
+
+6. **Stores Terraform state remotely**
+   - State files are stored in the S3 bucket:
+     ```
+     my-terraform-state-sap-demo
+     ```
+     and locked with the DynamoDB table:
+     ```
+     terraform-locks
+     ```
+
+### Environment Configuration
+
+Before using the pipeline, the following **GitHub Secrets** need to be configured in your repository:
+
+| Secret Name | Description |
+|--------------|-------------|
+| `AWS_ACCESS_KEY_ID` | Access key for the IAM user with Terraform permissions |
+| `AWS_SECRET_ACCESS_KEY` | Secret key for the same IAM user |
+| `AWS_REGION` | AWS region where infrastructure will be deployed (e.g., `us-east-1`) |
+
+### Terraform State Management
+
+To ensure consistent and reliable infrastructure deployment in both **local** and **CI/CD** environments, this project uses **remote state management** with **Amazon S3** and **DynamoDB**.
+
+### S3 Bucket — Remote State Storage
+
+Terraform stores its state file (`terraform.tfstate`) in an **S3 bucket**.  
+This allows all developers and the GitHub Actions pipeline to share a single source of truth for the current infrastructure state.
+
+### DynamoDB Table — State Locking
+
+A DynamoDB table (e.g. terraform-locks) is used to lock the state during terraform apply or terraform plan.
+This prevents multiple operations from modifying the infrastructure simultaneously, which could lead to state corruption. The pipeline needs it in order to pass successfully.
 
 ---
 
