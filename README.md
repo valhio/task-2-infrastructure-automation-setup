@@ -8,6 +8,8 @@ This repository contains Terraform code to provision a simple **web application 
 - **Security groups and networking** (VPC, subnets, Internet Gateway)
 
 The web application allows you to **view users** stored in the database and **add users via a URL parameter**.
+<br>
+To test the setup, you can go to http://demo-alb-1961873780.us-east-1.elb.amazonaws.com (latest deployment).
 
 ---
 
