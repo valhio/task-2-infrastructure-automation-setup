@@ -204,7 +204,7 @@ resource "aws_instance" "web" {
   systemctl start httpd
 
   # -----------------------
-  # index.php: lists users and allows adding new users with POST-Redirect-GET
+  # index.php: lists users, add users, delete users (POST-Redirect-GET)
   # -----------------------
   cat << 'EOPHP' > /var/www/html/index.php
   <?php
@@ -219,13 +219,13 @@ resource "aws_instance" "web" {
   if (!$conn->set_charset("utf8mb4")) { die("Error loading charset: " . $conn->error); }
 
   $message = '';
-  // Handle form submission
-  if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['name'])) {
+
+  // Handle Add User
+  if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add' && !empty($_POST['name'])) {
       $name = $_POST['name'];
       $stmt = $conn->prepare("INSERT INTO users (name) VALUES (?)");
       $stmt->bind_param("s", $name);
       if ($stmt->execute()) {
-          // Redirect to avoid duplicate submission
           header("Location: " . $_SERVER['PHP_SELF'] . "?added=" . urlencode($name));
           exit();
       } else {
@@ -234,10 +234,23 @@ resource "aws_instance" "web" {
       $stmt->close();
   }
 
-  // Check for recently added user
-  if (!empty($_GET['added'])) {
-      $message = "User added: " . htmlspecialchars($_GET['added']);
+  // Handle Delete User
+  if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete' && !empty($_POST['id'])) {
+      $id = intval($_POST['id']);
+      $stmt = $conn->prepare("DELETE FROM users WHERE id = ?");
+      $stmt->bind_param("i", $id);
+      if ($stmt->execute()) {
+          header("Location: " . $_SERVER['PHP_SELF'] . "?deleted=" . $id);
+          exit();
+      } else {
+          $message = "Error deleting user.";
+      }
+      $stmt->close();
   }
+
+  // Check messages
+  if (!empty($_GET['added'])) { $message = "User added: " . htmlspecialchars($_GET['added']); }
+  if (!empty($_GET['deleted'])) { $message = "User deleted: ID " . intval($_GET['deleted']); }
 
   // Fetch all users
   $sql = "SELECT * FROM users";
@@ -278,22 +291,33 @@ resource "aws_instance" "web" {
           input[type=submit]:hover { background-color: #2980b9; }
           .message { margin-top: 10px; font-weight: bold; color: green; }
           .server { margin-bottom: 20px; font-weight: bold; }
+          .delete-button { background-color: #e74c3c; }
+          .delete-button:hover { background-color: #c0392b; }
       </style>
   </head>
   <body>
       <div class="container">
           <div class="server">Served by: Web Server <?= $server_number ?></div>
           <h1>Users from the Database</h1>
+
           <?php if ($result && $result->num_rows > 0): ?>
               <table>
                   <tr>
                       <th>ID</th>
                       <th>Name</th>
+                      <th>Actions</th>
                   </tr>
                   <?php while($row = $result->fetch_assoc()): ?>
                   <tr>
                       <td><?= $row["id"] ?></td>
                       <td><?= htmlspecialchars($row["name"]) ?></td>
+                      <td>
+                          <form method="post" style="display:inline;">
+                              <input type="hidden" name="id" value="<?= $row['id'] ?>">
+                              <input type="hidden" name="action" value="delete">
+                              <input type="submit" value="Delete" class="delete-button">
+                          </form>
+                      </td>
                   </tr>
                   <?php endwhile; ?>
               </table>
@@ -303,6 +327,7 @@ resource "aws_instance" "web" {
 
           <!-- Add user form -->
           <form method="post" action="">
+              <input type="hidden" name="action" value="add">
               <input type="text" name="name" placeholder="Enter new user name" required>
               <input type="submit" value="Create User">
           </form>
@@ -316,6 +341,7 @@ resource "aws_instance" "web" {
   <?php $conn->close(); ?>
   EOPHP
 EOF
+
 
 tags = {
   Name = "web-server-${count.index + 1}"
