@@ -173,3 +173,7 @@ This prevents multiple operations from modifying the infrastructure simultaneous
 - RDS is **not publicly accessible**, only web servers can access it.  
 - Credentials (`admin/admin123`) are hardcoded for demo purposes; in production, they should be securely managed.
 - Use security groups to restrict access to only trusted IPs and ports.
+
+## Resources Used
+At first I got familiar with Teraform by watching some tutorials on YouTube and reading the official documentation. Then I watched some videos on how to set up a 3-Tier Architecture Web Application on AWS and Terraform.
+Finally, pretty much the entirety of the code was developed using ChatGPT, with some additional help from the official Terraform documentation. Here's a link to the full ChatGPT conversation if you want to see how it all came together: https://chatgpt.com/share/690cbce4-afe8-8005-a18b-02ccdb84d914
