@@ -4,20 +4,11 @@ on:
   push:
     branches:
       - main
-  pull_request:
-
-permissions:
-  contents: read
+  workflow_dispatch:  # allows manual trigger
 
 jobs:
   terraform:
-    name: "Terraform Deploy"
     runs-on: ubuntu-latest
-
-    env:
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_REGION: ${{ secrets.AWS_REGION }}
 
     steps:
       - name: Checkout repository
@@ -28,15 +19,17 @@ jobs:
         with:
           terraform_version: 1.9.5
 
-      - name: Initialize Terraform
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+      - name: Terraform Init
         run: terraform init
 
-      # (optional) Format check
-      - name: Validate Terraform files
-        run: terraform validate
-
-      # Automatically rebuild EC2 instances (your PHP app)
-      - name: Force redeploy web servers
+      - name: Taint EC2 Instances (Force Redeploy PHP)
         run: |
           terraform taint aws_instance.web[0] || true
           terraform taint aws_instance.web[1] || true
